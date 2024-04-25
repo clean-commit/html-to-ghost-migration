@@ -1,0 +1,7 @@
+src/*
+output/*
+!output/.gitkeep
+!src/.gitkeep
+
+node_modules
+.DS_Store
