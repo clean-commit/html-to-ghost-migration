@@ -9,6 +9,8 @@ import {
   recursivelyRemoveEmptyElements,
 } from './lib/utils.mjs';
 
+const titleElement = 'h1.page-header__title';
+
 init();
 
 async function init() {
@@ -37,11 +39,11 @@ async function init() {
   for (let x = 0; x < files.length; x++) {
     const file = files[x];
     const htmlContent = await readFile(file, 'utf-8');
-    const $ = cheerio.load(htmlContent);
+    const $ = cheerio.load(htmlContent.replaceAll('http://', 'https://'));
 
     // Get the title & meta data
-    const title = $('h1.page-header__title').text().trim();
-    bar.update(x, { title: `Migrating: ${title}` });
+    const title = $(titleElement).text().trim();
+    bar.update(x + 1, { title: `Migrating: ${title}` });
     const meta_title = $('meta[name="og:title"]').attr('content') || title;
     const meta_description =
       $('meta[name="description"]').attr('content') || null;
@@ -49,6 +51,8 @@ async function init() {
     // Prepare the date
     const authorData = $('#hubspot-author_data').text();
     const dateRegex = /\d{2}-\w{3}-\d{4} \d{2}:\d{2}:\d{2}/;
+    // const dateRegex =
+    //   /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{1,2},\s\d{4}\s\d{1,2}:\d{2}:\d{2}\s(AM|PM)\b/;
     const dateStr = authorData.match(dateRegex)?.[0];
     const published_at = dateStr ? new Date(Date.parse(dateStr)) : new Date();
 
@@ -91,6 +95,18 @@ async function init() {
       recursivelyRemoveEmptyElements($(this));
     });
 
+    // Sanatize iframes
+    $('iframe').each((i, elem) => {
+      // Get the outer HTML of the iframe
+      const iframeHtml = $.html(elem);
+
+      // Wrap the iframe in an HTML card
+      const cardHtml = `<!--kg-card-begin: html-->\n${iframeHtml}\n<!--kg-card-end: html-->`;
+
+      // Replace the iframe with the card
+      $(elem).replaceWith(cardHtml);
+    });
+
     // Now create the postContent variable
     let postContent = parentContainer.html();
 
@@ -98,6 +114,7 @@ async function init() {
 
     const post = {
       title,
+      html: postContent,
       lexical: JSON.stringify(lexical),
       feature_image: featureImage,
       feature_image_alt: featureImageAlt,
@@ -125,5 +142,5 @@ async function init() {
     `output/${migrationName}.json`,
     JSON.stringify(jsonObject, null, 2),
   );
-  console.log(`Migration created: ${migrationName}`);
+  console.log(`\nMigration created: ${migrationName}`);
 }
