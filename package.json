@@ -9,11 +9,14 @@
   "author": "Wojciech Kaluzny <wk@mrkaluzny.com>",
   "license": "ISC",
   "dependencies": {
+    "@tryghost/admin-api": "^1.13.11",
     "@tryghost/kg-html-to-lexical": "^1.0.12",
     "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.4.5",
     "glob": "^10.3.12",
     "html-to-text": "^9.0.5",
     "jsonfile": "^6.1.0",
+    "node-fetch": "^3.3.2",
     "progress": "^2.0.3"
   }
 }

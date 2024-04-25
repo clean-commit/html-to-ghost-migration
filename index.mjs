@@ -3,18 +3,26 @@ import { readFile } from 'fs/promises';
 import { glob } from 'glob';
 import * as cheerio from 'cheerio';
 import { htmlToLexical } from '@tryghost/kg-html-to-lexical';
+import {
+  checkIfImageExists,
+  recursivelyRemoveEmptyElements,
+} from './lib/utils.mjs';
 
 init();
 
 async function init() {
   const jsonObject = {
-    meta: {
-      exported_on: Date.now(),
-      version: '2.14.0',
-    },
-    data: {
-      posts: [],
-    },
+    db: [
+      {
+        meta: {
+          exported_on: Date.now(),
+          version: '2.14.0',
+        },
+        data: {
+          posts: [],
+        },
+      },
+    ],
   };
 
   console.log('Starting migration...');
@@ -26,7 +34,8 @@ async function init() {
   }
 
   console.log('working on files: ', files.length);
-  for (const file of files) {
+  for (let x = 0; x < 1; x++) {
+    const file = files[x];
     const htmlContent = await readFile(file, 'utf-8');
     const $ = cheerio.load(htmlContent);
 
@@ -42,12 +51,13 @@ async function init() {
     let featureImageAlt = null;
     const firstP = $('span#hs_cos_wrapper_post_body p').first();
     if (firstP.find('img').length) {
-      featureImage = firstP.find('img').attr('src');
-      featureImageAlt = firstP.find('img').attr('alt');
+      const imgSrc = firstP.find('img').attr('src');
+      if (await checkIfImageExists(imgSrc)) {
+        featureImage = imgSrc;
+        featureImageAlt = firstP.find('img').attr('alt');
+      }
       firstP.remove();
     }
-
-    $('span#hs_cos_wrapper_post_body p:has(span.hs-cta-wrapper)').remove();
 
     // Find the index of the element that contains the text
     const targetIndex = parentContainer
@@ -68,6 +78,11 @@ async function init() {
         });
     }
 
+    $('.hs-cta-wrapper').parent().remove();
+    $('p:empty, span:empty').each(function () {
+      recursivelyRemoveEmptyElements($(this));
+    });
+
     // Now create the postContent variable
     let postContent = parentContainer.html();
 
@@ -79,19 +94,17 @@ async function init() {
     const dateStr = authorData.match(dateRegex)?.[0];
 
     // Convert the date string to epoch time
-    const published_at = dateStr ? Date.parse(dateStr) : null;
+    const published_at = dateStr ? new Date(Date.parse(dateStr)) : new Date();
 
-    // Create a new object in the data.posts array
-    jsonObject.data.posts.push({
+    const post = {
       title,
-      lexical,
+      lexical: JSON.stringify(lexical),
       feature_image: featureImage,
       feature_image_alt: featureImageAlt,
       feature_image_caption: null,
-      featured: 0,
+      featured: false,
       page: 0,
       status: 'published',
-      published_at: published_at || Date.now(),
       published_by: 1,
       email_only: false,
       author_id: 1,
@@ -99,15 +112,17 @@ async function init() {
       updated_by: 1,
       meta_title,
       meta_description,
-      updated_at: published_at || Date.now(),
-      created_at: published_at || Date.now(),
-    });
+      published_at: published_at.toISOString(),
+      created_at: new Date().toISOString(),
+    };
+    // Create a new object in the data.posts array
+    jsonObject.db[0].data.posts.push(post);
   }
 
   const migrationName = `migration-${Date.now()}`;
 
   fs.writeFileSync(
-    `${migrationName}.json`,
+    `output/${migrationName}.json`,
     JSON.stringify(jsonObject, null, 2),
   );
   console.log(`Migration created: ${migrationName}`);
