@@ -4,6 +4,8 @@
   "description": "Tool for preparing import files based on HTML for Ghost import",
   "main": "index.js",
   "scripts": {
+    "start": "node index.mjs",
+    "clear": "rm ./output/*.json",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Wojciech Kaluzny <wk@mrkaluzny.com>",
@@ -12,6 +14,7 @@
     "@tryghost/admin-api": "^1.13.11",
     "@tryghost/kg-html-to-lexical": "^1.0.12",
     "cheerio": "^1.0.0-rc.12",
+    "cli-progress": "^3.12.0",
     "dotenv": "^16.4.5",
     "glob": "^10.3.12",
     "html-to-text": "^9.0.5",

@@ -5,6 +5,7 @@ import * as cheerio from 'cheerio';
 import { htmlToLexical } from '@tryghost/kg-html-to-lexical';
 import {
   checkIfImageExists,
+  initiateProgressBar,
   recursivelyRemoveEmptyElements,
 } from './lib/utils.mjs';
 
@@ -25,28 +26,35 @@ async function init() {
     ],
   };
 
-  console.log('Starting migration...');
-
   const files = await glob('src/**/*.html');
   if (files.length === 0) {
-    console.log('No files found');
+    console.log('No files found. Exiting.');
     return;
   }
 
-  console.log('working on files: ', files.length);
-  for (let x = 0; x < 1; x++) {
+  const bar = initiateProgressBar();
+  bar.start(files.length, 0);
+  for (let x = 0; x < files.length; x++) {
     const file = files[x];
     const htmlContent = await readFile(file, 'utf-8');
     const $ = cheerio.load(htmlContent);
 
+    // Get the title & meta data
     const title = $('h1.page-header__title').text().trim();
+    bar.update(x, { title: `Migrating: ${title}` });
     const meta_title = $('meta[name="og:title"]').attr('content') || title;
     const meta_description =
       $('meta[name="description"]').attr('content') || null;
-    console.log('title: ', title);
+
+    // Prepare the date
+    const authorData = $('#hubspot-author_data').text();
+    const dateRegex = /\d{2}-\w{3}-\d{4} \d{2}:\d{2}:\d{2}/;
+    const dateStr = authorData.match(dateRegex)?.[0];
+    const published_at = dateStr ? new Date(Date.parse(dateStr)) : new Date();
 
     const parentContainer = $('span#hs_cos_wrapper_post_body');
 
+    // Featured image
     let featureImage = null;
     let featureImageAlt = null;
     const firstP = $('span#hs_cos_wrapper_post_body p').first();
@@ -86,15 +94,7 @@ async function init() {
     // Now create the postContent variable
     let postContent = parentContainer.html();
 
-    // Convert the post content to Lexical format
     const lexical = htmlToLexical(postContent);
-
-    const authorData = $('#hubspot-author_data').text();
-    const dateRegex = /\d{2}-\w{3}-\d{4} \d{2}:\d{2}:\d{2}/;
-    const dateStr = authorData.match(dateRegex)?.[0];
-
-    // Convert the date string to epoch time
-    const published_at = dateStr ? new Date(Date.parse(dateStr)) : new Date();
 
     const post = {
       title,
